@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMU Data Collection System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 900px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .status-card {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
+        }
+
+        .status-card h2 {
+            color: #4f46e5;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-card h2 i {
+            font-size: 1.3rem;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .status-value.connected {
+            color: #10b981;
+        }
+
+        .status-value.disconnected {
+            color: #ef4444;
+        }
+
+        .status-value.recording {
+            color: #f59e0b;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .btn-large {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4b5563;
+            font-weight: 500;
+        }
+
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group select:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+
+        .instructions {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 25px;
+        }
+
+        .instructions h3 {
+            color: #92400e;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+            color: #92400e;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            transform: translateX(150%);
+            transition: transform 0.3s;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #10b981;
+        }
+
+        .notification.error {
+            background: #ef4444;
+        }
+
+        .notification.warning {
+            background: #f59e0b;
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .indicator-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc2626;
+            animation: pulse 2s infinite;
+        }
+
+        .indicator-dot.connected {
+            background: #10b981;
+        }
+
+        .indicator-dot.recording {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-hands"></i> IMU Data Collection</h1>
+            <p>Collect hand movement data using MPU sensors for shape recognition</p>
+        </div>
+        
+        <div class="content">
+            <!-- Status Card -->
+            <div class="status-card">
+                <h2><i class="fas fa-plug"></i> System Status</h2>
+                
+                <div class="connection-indicator">
+                    <div class="indicator-dot" id="connectionDot"></div>
+                    <span id="connectionText">Checking connection...</span>
+                </div>
+                
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">MPU Connection</div>
+                        <div class="status-value" id="mpuStatus">Checking...</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Recording Status</div>
+                        <div class="status-value" id="recordingStatus">Not Recording</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">Data Points</div>
+                        <div class="status-value" id="dataPoints">0</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">ML Models</div>
+                        <div class="status-value" id="mlStatus">Checking...</div>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <div class="status-label">Current File</div>
+                    <div class="status-value" id="currentFile">None</div>
+                </div>
+            </div>
+            
+            <!-- Recording Control Card -->
+            <div class="status-card">
+                <h2><i class="fas fa-microchip"></i> Data Recording</h2>
+                
+                <div class="control-grid">
+                    <div class="form-group">
+                        <label for="shapeSelect">Shape Type</label>
+                        <select id="shapeSelect">
+                            <option value="square">Square</option>
+                            <option value="circle">Circle</option>
+                            <option value="triangle">Triangle</option>
+                            <option value="star">Star</option>
+                            <option value="unknown">Unknown</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="qualitySelect">Drawing Quality</label>
+                        <select id="qualitySelect">
+                            <option value="good">Good</option>
+                            <option value="medium">Medium</option>
+                            <option value="bad">Bad</option>
+                            <option value="unknown">Unknown</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button class="btn btn-success btn-large" id="startBtn" onclick="startRecording()">
+                    <i class="fas fa-play"></i> Start Recording
+                </button>
+                
+                <button class="btn btn-danger btn-large" id="stopBtn" onclick="stopRecording()" disabled>
+                    <i class="fas fa-stop"></i> Stop Recording
+                </button>
+                
+                <button class="btn btn-large" onclick="saveCurrentData()">
+                    <i class="fas fa-save"></i> Save Data
+                </button>
+            </div>
+            
+            <!-- Navigation Card -->
+            <div class="status-card">
+                <h2><i class="fas fa-rocket"></i> Quick Actions</h2>
+                
+                <a href="/real" class="btn btn-large">
+                    <i class="fas fa-brain"></i> Go to Real-time Prediction
+                </a>
+                
+                <button class="btn btn-warning btn-large" onclick="testConnection()">
+                    <i class="fas fa-wifi"></i> Test Connection
+                </button>
+                
+                <div class="instructions">
+                    <h3><i class="fas fa-info-circle"></i> How to Use:</h3>
+                    <ol>
+                        <li>Connect MPU device to this computer</li>
+                        <li>Run MPU client to send data to port 5000</li>
+                        <li>Select shape type and quality</li>
+                        <li>Click "Start Recording" to begin data collection</li>
+                        <li>Draw the selected shape with your hand</li>
+                        <li>Click "Stop Recording" when finished</li>
+                        <li>Go to Prediction page to analyze the shape</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification System -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        let statusInterval = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus();
+            statusInterval = setInterval(updateStatus, 2000);
+        });
+        
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function updateStatus() {
+            fetch('/get_status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update connection status
+                    const connectionDot = document.getElementById('connectionDot');
+                    const connectionText = document.getElementById('connectionText');
+                    const mpuStatus = document.getElementById('mpuStatus');
+                    
+                    if (data.is_connected) {
+                        connectionDot.className = 'indicator-dot connected';
+                        connectionText.textContent = 'MPU Device Connected';
+                        mpuStatus.textContent = 'Connected';
+                        mpuStatus.className = 'status-value connected';
+                        
+                        if (data.client_address) {
+                            connectionText.textContent += ` (${data.client_address[0]})`;
+                        }
+                    } else {
+                        connectionDot.className = 'indicator-dot';
+                        connectionText.textContent = 'Waiting for MPU device...';
+                        mpuStatus.textContent = 'Disconnected';
+                        mpuStatus.className = 'status-value disconnected';
+                    }
+                    
+                    // Update recording status
+                    const recordingStatus = document.getElementById('recordingStatus');
+                    const startBtn = document.getElementById('startBtn');
+                    const stopBtn = document.getElementById('stopBtn');
+                    
+                    if (data.is_recording) {
+                        connectionDot.classList.add('recording');
+                        recordingStatus.textContent = 'Recording...';
+                        recordingStatus.className = 'status-value recording';
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                    } else {
+                        connectionDot.classList.remove('recording');
+                        recordingStatus.textContent = 'Not Recording';
+                        recordingStatus.className = 'status-value';
+                        startBtn.disabled = !data.is_connected;
+                        stopBtn.disabled = true;
+                    }
+                    
+                    // Update data points
+                    document.getElementById('dataPoints').textContent = data.data_points;
+                    
+                    // Update ML status
+                    document.getElementById('mlStatus').textContent = 
+                        data.ml_models_loaded ? 'Loaded' : 'Not Loaded';
+                    
+                    // Update current file
+                    const currentFile = document.getElementById('currentFile');
+                    if (data.current_filename) {
+                        const filename = data.current_filename.split('/').pop();
+                        currentFile.textContent = filename;
+                    } else {
+                        currentFile.textContent = 'None';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking status:', error);
+                    showNotification('Cannot connect to server', 'error');
+                });
+        }
+        
+        function startRecording() {
+            const shape = document.getElementById('shapeSelect').value;
+            const quality = document.getElementById('qualitySelect').value;
+            
+            fetch('/start_recording', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    shape: shape,
+                    quality: quality
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error starting recording: ' + error, 'error');
+            });
+        }
+        
+        function stopRecording() {
+            fetch('/stop_recording', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error stopping recording: ' + error, 'error');
+            });
+        }
+        
+        function saveCurrentData() {
+            fetch('/save_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification(data.message, 'success');
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error saving data: ' + error, 'error');
+            });
+        }
+        
+        function testConnection() {
+            fetch('/test_connection')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Server is running!', 'success');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Server connection failed', 'error');
+                });
+        }
+    </script>
+</body>
+</html>

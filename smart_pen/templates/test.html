@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMU Drawing & Shape Prediction System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.8;
+            margin-bottom: 10px;
+        }
+
+        .nav-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.primary {
+            background: #2196F3;
+        }
+
+        .nav-btn.primary:hover {
+            background: #1976D2;
+        }
+
+        .status-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .status-online {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .status-offline {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .status-active {
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .status-inactive {
+            color: #6c757d;
+            font-weight: 600;
+        }
+
+        .drawing-area {
+            padding: 30px;
+            border-bottom: 1px solid #e9ecef;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .drawing-canvas-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: white;
+            border-radius: 10px;
+            border: 3px dashed #007bff;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        #drawing-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .canvas-instructions {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 1.2em;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .control-panel {
+            padding: 30px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .control-panel h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-weight: 400;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 180px;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-draw {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-draw:hover:not(:disabled) {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-draw.drawing {
+            background: #dc3545;
+        }
+
+        .btn-draw.drawing:hover:not(:disabled) {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .btn-clear {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-clear:hover:not(:disabled) {
+            background: #e68900;
+            transform: translateY(-2px);
+        }
+
+        .prediction-result {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            text-align: center;
+            border-left: 5px solid #2196F3;
+        }
+
+        .prediction-title {
+            font-size: 1.4em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .prediction-boxes {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .prediction-box {
+            padding: 25px;
+            border-radius: 10px;
+            background: #f8f9fa;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .prediction-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .prediction-box.shape {
+            border-top: 4px solid #4CAF50;
+        }
+
+        .prediction-box.quality {
+            border-top: 4px solid #2196F3;
+        }
+
+        .prediction-label {
+            font-size: 1em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .prediction-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .prediction-value.unknown {
+            color: #999;
+            font-style: italic;
+        }
+
+        .file-info-panel {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .file-info-title {
+            font-size: 1.2em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .data-panel {
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .data-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        #data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #data-table th {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        #data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        #data-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        #data-table tr:hover {
+            background: #e9ecef;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .info-panel {
+            padding: 30px;
+            background: white;
+        }
+
+        .file-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+
+        .message-area {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 60px;
+            border-left: 4px solid #28a745;
+        }
+
+        .success-message {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .error-message {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .info-message {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .drawing-pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes drawLine {
+            from { stroke-dashoffset: 1000; }
+            to { stroke-dashoffset: 0; }
+        }
+
+        .drawing-line {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawLine 2s linear forwards;
+        }
+
+        @media (max-width: 768px) {
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .status-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .prediction-boxes {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>IMU Drawing & Shape Prediction System</h1>
+            <p class="subtitle">Draw with your IMU pen and get real-time shape quality predictions</p>
+            <div class="nav-buttons">
+                <a href="/" class="nav-btn">Data Collection</a>
+                <a href="/test" class="nav-btn primary">Drawing Prediction</a>
+            </div>
+        </header>
+
+        <div class="status-panel">
+            <div class="status-item">
+                <span class="status-label">Device Connection:</span>
+                <span id="connection-status" class="status-offline">● Offline</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Drawing Status:</span>
+                <span id="drawing-status" class="status-inactive">● Inactive</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Data Points:</span>
+                <span id="data-points">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Models Loaded:</span>
+                <span id="model-status" class="status-inactive">● Checking</span>
+            </div>
+        </div>
+
+        <div class="drawing-area">
+            <h2>Drawing Canvas</h2>
+            <p style="color: #666; margin-bottom: 20px;">Draw any shape with your IMU-equipped pen. The system will save data and predict shape/quality.</p>
+            
+            <div class="drawing-canvas-container">
+                <canvas id="drawing-canvas"></canvas>
+                <div class="canvas-instructions" id="canvas-instructions">
+                    Connect your IMU device and click "Start Drawing" to begin
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button id="draw-btn" class="btn btn-draw" disabled>Start Drawing</button>
+                <button id="clear-btn" class="btn btn-clear">Clear Canvas</button>
+            </div>
+        </div>
+
+        <div class="prediction-result" id="prediction-result">
+            <div class="prediction-title">Shape Quality Prediction</div>
+            <div class="prediction-boxes">
+                <div class="prediction-box shape">
+                    <div class="prediction-label">Predicted Shape</div>
+                    <div class="prediction-value unknown" id="predicted-shape">Unknown</div>
+                </div>
+                <div class="prediction-box quality">
+                    <div class="prediction-label">Predicted Quality</div>
+                    <div class="prediction-value unknown" id="predicted-quality">Unknown</div>
+                </div>
+            </div>
+            <div id="prediction-message" style="color: #666; font-size: 1.1em;">
+                Draw a shape to see predictions
+            </div>
+            <div id="file-save-info" style="margin-top: 15px; padding: 10px; background: #e8f4fd; border-radius: 5px;">
+                <small>Data will be saved to: <span id="save-directory">Loading...</span></small>
+            </div>
+        </div>
+
+        <div class="file-info-panel">
+            <div class="file-info-title">Recently Saved Drawing Files</div>
+            <div class="file-list" id="recent-files">
+                <div class="no-data">No drawing files yet</div>
+            </div>
+        </div>
+
+        <div class="data-panel">
+            <h2>Recent Drawing Data Stream</h2>
+            <div class="data-container">
+                <table id="data-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Hand ID</th>
+                            <th>Accel X</th>
+                            <th>Accel Y</th>
+                            <th>Accel Z</th>
+                            <th>Gyro X</th>
+                            <th>Gyro Y</th>
+                            <th>Gyro Z</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-body">
+                        <tr>
+                            <td colspan="8" class="no-data">No drawing data available</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h2>System Information</h2>
+            <div id="file-info" class="file-info">
+                <div>Drawing data is saved to: <span id="save-dir-path">Loading...</span></div>
+                <div style="margin-top: 10px;">Model files required: scaler.pkl, best_model_shape_detector.pkl, best_model_quality_detector.pkl</div>
+            </div>
+            <div id="message-area" class="message-area"></div>
+        </div>
+    </div>
+
+    <script>
+        class DrawingPredictor {
+            constructor() {
+                this.isDrawing = false;
+                this.canvas = document.getElementById('drawing-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.points = [];
+                this.statusInterval = null;
+                this.dataInterval = null;
+                this.filesInterval = null;
+                this.predictionHistory = [];
+                this.setupCanvas();
+                this.initializeEventListeners();
+                this.startStatusUpdates();
+                this.startFilesUpdates();
+                this.updateCanvasSize();
+            }
+
+            setupCanvas() {
+                this.updateCanvasSize();
+                this.ctx.lineWidth = 3;
+                this.ctx.lineCap = 'round';
+                this.ctx.strokeStyle = '#2196F3';
+                this.ctx.fillStyle = '#f8f9fa';
+                this.clearCanvas();
+            }
+
+            updateCanvasSize() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                this.clearCanvas();
+            }
+
+            clearCanvas() {
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                this.points = [];
+                document.getElementById('canvas-instructions').style.display = 'block';
+                this.updatePrediction('Unknown', 'Unknown', 'Canvas cleared. Draw a new shape.');
+            }
+
+            initializeEventListeners() {
+                const drawBtn = document.getElementById('draw-btn');
+                const clearBtn = document.getElementById('clear-btn');
+                
+                drawBtn.addEventListener('click', () => this.toggleDrawing());
+                clearBtn.addEventListener('click', () => this.clearCanvas());
+                
+                window.addEventListener('resize', () => this.updateCanvasSize());
+                
+                // Canvas mouse events
+                this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
+                this.canvas.addEventListener('mousemove', (e) => this.draw(e));
+                this.canvas.addEventListener('mouseup', () => this.stopDrawing());
+                this.canvas.addEventListener('mouseleave', () => this.stopDrawing());
+                
+                // Touch events for mobile
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.startDrawing(e.touches[0]);
+                });
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    this.draw(e.touches[0]);
+                });
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.stopDrawing();
+                });
+            }
+
+            startDrawing(e) {
+                if (!this.isDrawing) return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                this.points.push({
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                });
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.points[0].x, this.points[0].y);
+                document.getElementById('canvas-instructions').style.display = 'none';
+            }
+
+            draw(e) {
+                if (!this.isDrawing || this.points.length === 0) return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                this.points.push({ x, y });
+                this.ctx.lineTo(x, y);
+                this.ctx.stroke();
+            }
+
+            stopDrawing() {
+                if (this.points.length > 0) {
+                    this.ctx.closePath();
+                }
+            }
+
+            async toggleDrawing() {
+                if (this.isDrawing) {
+                    await this.stopDrawingSession();
+                } else {
+                    await this.startDrawingSession();
+                }
+            }
+
+            async startDrawingSession() {
+                try {
+                    const response = await fetch('/start_drawing', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        this.isDrawing = true;
+                        this.showMessage(result.message, 'success');
+                        this.updateUIForDrawing(true);
+                        this.startDataUpdates();
+                    } else {
+                        this.showMessage(result.message, 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Error starting drawing: ' + error.message, 'error');
+                }
+            }
+
+            async stopDrawingSession() {
+                try {
+                    const response = await fetch('/stop_drawing', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        this.isDrawing = false;
+                        this.showMessage(result.message, 'success');
+                        this.updateUIForDrawing(false);
+                        this.stopDataUpdates();
+                        
+                        // Update prediction and file info
+                        if (result.prediction_message) {
+                            this.updatePrediction(
+                                result.predicted_shape,
+                                result.predicted_quality,
+                                result.prediction_message
+                            );
+                        }
+                        
+                        // Show saved file info
+                        if (result.saved_file) {
+                            this.showMessage(`Data saved to: ${result.filename}`, 'info');
+                            this.updateRecentFiles();
+                        }
+                    } else {
+                        this.showMessage(result.message, 'error');
+                    }
+                } catch (error) {
+                    this.showMessage('Error stopping drawing: ' + error.message, 'error');
+                }
+            }
+
+            updatePrediction(shape, quality, message) {
+                const shapeElement = document.getElementById('predicted-shape');
+                const qualityElement = document.getElementById('predicted-quality');
+                const messageElement = document.getElementById('prediction-message');
+                
+                shapeElement.textContent = shape;
+                shapeElement.className = shape === 'Unknown' ? 
+                    'prediction-value unknown' : 'prediction-value';
+                
+                qualityElement.textContent = quality;
+                qualityElement.className = quality === 'Unknown' ? 
+                    'prediction-value unknown' : 'prediction-value';
+                
+                messageElement.textContent = message;
+                
+                if (shape !== 'Unknown' && quality !== 'Unknown') {
+                    this.predictionHistory.push({
+                        shape,
+                        quality,
+                        timestamp: new Date().toLocaleTimeString(),
+                        points: this.points.length
+                    });
+                }
+            }
+
+            updateUIForDrawing(drawing) {
+                const drawBtn = document.getElementById('draw-btn');
+                const clearBtn = document.getElementById('clear-btn');
+                const drawingStatus = document.getElementById('drawing-status');
+
+                if (drawing) {
+                    drawBtn.textContent = 'Stop Drawing & Predict';
+                    drawBtn.classList.add('drawing');
+                    clearBtn.disabled = true;
+                    drawingStatus.textContent = '● Drawing';
+                    drawingStatus.className = 'status-active drawing-pulse';
+                } else {
+                    drawBtn.textContent = 'Start Drawing';
+                    drawBtn.classList.remove('drawing');
+                    clearBtn.disabled = false;
+                    drawingStatus.textContent = '● Inactive';
+                    drawingStatus.className = 'status-inactive';
+                }
+            }
+
+            async updateStatus() {
+                try {
+                    const response = await fetch('/get_status');
+                    const status = await response.json();
+
+                    this.updateConnectionStatus(status.is_connected);
+                    this.updateDataPoints(status.drawing_points);
+                    this.updateModelStatus(status.models_loaded);
+                    
+                    // Update save directory info
+                    if (status.drawing_save_dir) {
+                        document.getElementById('save-directory').textContent = status.drawing_save_dir;
+                        document.getElementById('save-dir-path').textContent = status.drawing_save_dir;
+                    }
+                    
+                    // Enable/disable draw button
+                    document.getElementById('draw-btn').disabled = !status.is_connected;
+                    
+                    // Sync drawing state
+                    if (status.is_drawing && !this.isDrawing) {
+                        this.isDrawing = true;
+                        this.updateUIForDrawing(true);
+                    } else if (!status.is_drawing && this.isDrawing) {
+                        this.isDrawing = false;
+                        this.updateUIForDrawing(false);
+                    }
+                } catch (error) {
+                    console.error('Error updating status:', error);
+                }
+            }
+
+            async updateRecentFiles() {
+                try {
+                    const response = await fetch('/list_drawing_files');
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {
+                        this.displayRecentFiles(result.files);
+                    }
+                } catch (error) {
+                    console.error('Error updating files:', error);
+                }
+            }
+
+            displayRecentFiles(files) {
+                const filesContainer = document.getElementById('recent-files');
+                
+                if (!files || files.length === 0) {
+                    filesContainer.innerHTML = '<div class="no-data">No drawing files yet</div>';
+                    return;
+                }
+
+                filesContainer.innerHTML = files.map(file => `
+                    <div class="file-item">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-size">${Math.round(file.size / 1024)} KB</div>
+                    </div>
+                `).join('');
+            }
+
+            updateConnectionStatus(isConnected) {
+                const connectionStatus = document.getElementById('connection-status');
+                const drawBtn = document.getElementById('draw-btn');
+                
+                if (isConnected) {
+                    connectionStatus.textContent = '● Connected';
+                    connectionStatus.className = 'status-online';
+                } else {
+                    connectionStatus.textContent = '● Offline';
+                    connectionStatus.className = 'status-offline';
+                    drawBtn.disabled = true;
+                }
+            }
+
+            updateModelStatus(modelsLoaded) {
+                const modelStatus = document.getElementById('model-status');
+                
+                if (modelsLoaded) {
+                    modelStatus.textContent = '● Loaded';
+                    modelStatus.className = 'status-online';
+                } else {
+                    modelStatus.textContent = '● Not Loaded';
+                    modelStatus.className = 'status-offline';
+                }
+            }
+
+            updateDataPoints(points) {
+                document.getElementById('data-points').textContent = points;
+            }
+
+            async updateDataDisplay() {
+                try {
+                    const response = await fetch('/get_drawing_data');
+                    const data = await response.json();
+                    
+                    this.updateDataTable(data.data);
+                    this.updateDataPoints(data.total_points);
+                } catch (error) {
+                    console.error('Error updating data display:', error);
+                }
+            }
+
+            updateDataTable(data) {
+                const tbody = document.getElementById('data-body');
+                
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="no-data">No drawing data available</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(point => `
+                    <tr>
+                        <td>${point.timestamp}</td>
+                        <td>${point.hand_id}</td>
+                        <td>${point.accel_x}</td>
+                        <td>${point.accel_y}</td>
+                        <td>${point.accel_z}</td>
+                        <td>${point.gyro_x}</td>
+                        <td>${point.gyro_y}</td>
+                        <td>${point.gyro_z}</td>
+                    </tr>
+                `).join('');
+            }
+
+            showMessage(message, type) {
+                const messageArea = document.getElementById('message-area');
+                messageArea.textContent = message;
+                messageArea.className = `message-area ${type}-message`;
+                
+                setTimeout(() => {
+                    messageArea.textContent = '';
+                    messageArea.className = 'message-area';
+                }, 5000);
+            }
+
+            startStatusUpdates() {
+                this.statusInterval = setInterval(() => this.updateStatus(), 1000);
+            }
+
+            startFilesUpdates() {
+                this.filesInterval = setInterval(() => this.updateRecentFiles(), 5000);
+            }
+
+            startDataUpdates() {
+                this.dataInterval = setInterval(() => this.updateDataDisplay(), 500);
+            }
+
+            stopDataUpdates() {
+                if (this.dataInterval) {
+                    clearInterval(this.dataInterval);
+                    this.dataInterval = null;
+                }
+            }
+        }
+
+        // Initialize the application when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new DrawingPredictor();
+        });
+    </script>
+</body>
+</html>

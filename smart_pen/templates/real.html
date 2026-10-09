@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Shape Prediction</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 900px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        .card {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0;
+        }
+
+        .card h2 {
+            color: #4f46e5;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2 i {
+            font-size: 1.3rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc2626;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+        }
+
+        .status-dot.recording {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .prediction-result {
+            text-align: center;
+            padding: 30px;
+            margin-top: 20px;
+            background: white;
+            border-radius: 15px;
+            border: 2px dashed #e2e8f0;
+            transition: all 0.3s;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .prediction-result.active {
+            border-color: #4f46e5;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        }
+
+        .shape-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+            transition: all 0.3s;
+        }
+
+        .shape-icon.active {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .shape-name {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 10px;
+            opacity: 0.3;
+            transition: all 0.3s;
+        }
+
+        .shape-name.active {
+            opacity: 1;
+            color: #4f46e5;
+        }
+
+        .quality-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-top: 10px;
+            font-size: 1rem;
+        }
+
+        .quality-good {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .quality-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .quality-bad {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .data-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .info-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .info-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .upload-section {
+            margin-top: 20px;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .file-input:hover {
+            border-color: #4f46e5;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 500;
+            transform: translateX(150%);
+            transition: transform 0.3s;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #10b981;
+        }
+
+        .notification.error {
+            background: #ef4444;
+        }
+
+        .notification.warning {
+            background: #f59e0b;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #4f46e5;
+            text-decoration: none;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .data-display {
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .data-row {
+            padding: 8px;
+            border-bottom: 1px solid #f1f5f9;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .data-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-brain"></i> Real-time Shape Prediction</h1>
+            <p>Predict hand shapes using ML models from MPU sensor data</p>
+        </div>
+        
+        <div class="content">
+            <!-- Status & Control Card -->
+            <div class="card">
+                <h2><i class="fas fa-microchip"></i> Device Status</h2>
+                
+                <div class="status-indicator">
+                    <div class="status-dot" id="connectionDot"></div>
+                    <span id="connectionStatus">Checking connection...</span>
+                </div>
+                
+                <div class="data-info">
+                    <div class="info-item">
+                        <div class="info-label">Data Points</div>
+                        <div class="info-value" id="dataPoints">0</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Status</div>
+                        <div class="info-value" id="recordingText">Idle</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">ML Models</div>
+                        <div class="info-value" id="mlStatus">?</div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-success" id="startBtn" onclick="startRecording()">
+                    <i class="fas fa-play"></i> Start Recording
+                </button>
+                
+                <button class="btn btn-danger" id="stopBtn" onclick="stopRecording()" disabled>
+                    <i class="fas fa-stop"></i> Stop Recording
+                </button>
+                
+                <button class="btn btn-warning" id="predictBtn" onclick="predictLastRecording()" disabled>
+                    <i class="fas fa-brain"></i> Predict Last Recording
+                </button>
+                
+                <div class="data-display" id="dataDisplay">
+                    <div class="data-row">No data yet...</div>
+                </div>
+            </div>
+            
+            <!-- Prediction Card -->
+            <div class="card">
+                <h2><i class="fas fa-magic"></i> Prediction</h2>
+                
+                <div class="prediction-result" id="predictionResult">
+                    <div class="shape-icon" id="shapeIcon">?</div>
+                    <div class="shape-name" id="shapeName">Waiting for prediction...</div>
+                    <div class="quality-badge hidden" id="qualityBadge"></div>
+                    <div id="predictionInfo" style="margin-top: 15px; color: #64748b; font-size: 0.9rem;">
+                        Click "Predict" to analyze recorded data
+                    </div>
+                </div>
+                
+                <div class="upload-section">
+                    <div class="file-input" onclick="document.getElementById('fileUpload').click()">
+                        <i class="fas fa-cloud-upload-alt"></i> Click to upload CSV file
+                    </div>
+                    <input type="file" id="fileUpload" class="hidden" accept=".csv">
+                    
+                    <button class="btn" onclick="uploadAndPredict()" id="uploadBtn">
+                        <i class="fas fa-upload"></i> Upload & Predict
+                    </button>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <div class="info-item">
+                        <div class="info-label">Last Prediction</div>
+                        <div class="info-value" id="lastPrediction">None</div>
+                    </div>
+                </div>
+                
+                <a href="/" class="back-link">
+                    <i class="fas fa-arrow-left"></i> Back to Main Page
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification System -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        let statusInterval = null;
+        let dataInterval = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus();
+            statusInterval = setInterval(updateStatus, 2000);
+            dataInterval = setInterval(updateDataDisplay, 1000);
+        });
+        
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function updateStatus() {
+            fetch('/get_status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update connection status
+                    const connectionDot = document.getElementById('connectionDot');
+                    const connectionStatus = document.getElementById('connectionStatus');
+                    
+                    if (data.is_connected) {
+                        connectionDot.classList.add('connected');
+                        connectionStatus.textContent = 'MPU Connected';
+                    } else {
+                        connectionDot.classList.remove('connected');
+                        connectionStatus.textContent = 'MPU Disconnected';
+                    }
+                    
+                    // Update recording status
+                    const recordingText = document.getElementById('recordingText');
+                    const startBtn = document.getElementById('startBtn');
+                    const stopBtn = document.getElementById('stopBtn');
+                    const predictBtn = document.getElementById('predictBtn');
+                    
+                    if (data.is_recording) {
+                        connectionDot.classList.add('recording');
+                        recordingText.textContent = 'Recording...';
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                        predictBtn.disabled = true;
+                    } else {
+                        connectionDot.classList.remove('recording');
+                        recordingText.textContent = 'Ready';
+                        startBtn.disabled = !data.is_connected;
+                        stopBtn.disabled = true;
+                        predictBtn.disabled = !data.current_filename;
+                    }
+                    
+                    // Update data points
+                    document.getElementById('dataPoints').textContent = data.data_points;
+                    
+                    // Update ML status
+                    document.getElementById('mlStatus').textContent = 
+                        data.ml_models_loaded ? '✓' : '✗';
+                    
+                    // Update prediction if available
+                    if (data.prediction_ready) {
+                        updatePredictionResult(data.predicted_shape, data.predicted_quality);
+                        document.getElementById('lastPrediction').textContent = 
+                            `${data.predicted_shape || '?'} (${data.predicted_quality || '?'})`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking status:', error);
+                });
+        }
+        
+        function updateDataDisplay() {
+            fetch('/get_recent_data')
+                .then(response => response.json())
+                .then(data => {
+                    const displayDiv = document.getElementById('dataDisplay');
+                    
+                    if (data.total_points === 0) {
+                        displayDiv.innerHTML = '<div class="data-row">No data yet...</div>';
+                        return;
+                    }
+                    
+                    let html = '';
+                    const recentData = data.data.slice(-5); // Show last 5 data points
+                    
+                    recentData.forEach(point => {
+                        const time = new Date(point.timestamp).toLocaleTimeString();
+                        html += `
+                            <div class="data-row">
+                                ${time} | AX:${point.accel_x?.toFixed(2) || 0} AY:${point.accel_y?.toFixed(2) || 0} AZ:${point.accel_z?.toFixed(2) || 0}
+                            </div>
+                        `;
+                    });
+                    
+                    displayDiv.innerHTML = html;
+                });
+        }
+        
+        function startRecording() {
+            fetch('/start_recording', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    shape: 'unknown',
+                    quality: 'unknown'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Recording started! Draw your shape...', 'success');
+                } else {
+                    showNotification('Error: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error starting recording', 'error');
+            });
+        }
+        
+        function stopRecording() {
+            fetch('/stop_recording', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showNotification('Recording stopped. ' + data.message, 'success');
+                } else {
+                    showNotification('Error: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error stopping recording', 'error');
+            });
+        }
+        
+        function predictLastRecording() {
+            const predictBtn = document.getElementById('predictBtn');
+            predictBtn.disabled = true;
+            predictBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Predicting...';
+            
+            fetch('/predict_last', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updatePredictionResult(data.predicted_shape, data.predicted_quality);
+                    document.getElementById('lastPrediction').textContent = 
+                        `${data.predicted_shape} (${data.predicted_quality})`;
+                    showNotification(`Predicted: ${data.predicted_shape} (${data.predicted_quality})`, 'success');
+                } else {
+                    showNotification('Prediction failed: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Prediction error: ' + error, 'error');
+            })
+            .finally(() => {
+                predictBtn.disabled = false;
+                predictBtn.innerHTML = '<i class="fas fa-brain"></i> Predict Last Recording';
+            });
+        }
+        
+        function uploadAndPredict() {
+            const fileInput = document.getElementById('fileUpload');
+            const uploadBtn = document.getElementById('uploadBtn');
+            
+            if (!fileInput.files.length) {
+                showNotification('Please select a CSV file first', 'warning');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            fetch('/predict_upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updatePredictionResult(data.predicted_shape, data.predicted_quality);
+                    document.getElementById('lastPrediction').textContent = 
+                        `${data.predicted_shape} (${data.predicted_quality})`;
+                    showNotification(`Predicted: ${data.predicted_shape} (${data.predicted_quality})`, 'success');
+                } else {
+                    showNotification('Upload failed: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Upload error: ' + error, 'error');
+            })
+            .finally(() => {
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload & Predict';
+                fileInput.value = '';
+            });
+        }
+        
+        function updatePredictionResult(shape, quality) {
+            const resultDiv = document.getElementById('predictionResult');
+            const shapeIcon = document.getElementById('shapeIcon');
+            const shapeName = document.getElementById('shapeName');
+            const qualityBadge = document.getElementById('qualityBadge');
+            const predictionInfo = document.getElementById('predictionInfo');
+            
+            // Activate result display
+            resultDiv.classList.add('active');
+            
+            // Set shape icon and name
+            let icon = '?';
+            let shapeText = shape || 'Unknown';
+            
+            switch((shape || '').toLowerCase()) {
+                case 'square':
+                    icon = '■';
+                    shapeText = 'SQUARE';
+                    break;
+                case 'circle':
+                    icon = '●';
+                    shapeText = 'CIRCLE';
+                    break;
+                case 'triangle':
+                    icon = '▲';
+                    shapeText = 'TRIANGLE';
+                    break;
+                case 'star':
+                    icon = '★';
+                    shapeText = 'STAR';
+                    break;
+                default:
+                    icon = '?';
+            }
+            
+            shapeIcon.textContent = icon;
+            shapeIcon.classList.add('active');
+            shapeName.textContent = shapeText;
+            shapeName.classList.add('active');
+            
+            // Set quality badge
+            if (quality) {
+                qualityBadge.classList.remove('hidden');
+                qualityBadge.textContent = quality.toUpperCase();
+                qualityBadge.className = 'quality-badge';
+                
+                switch(quality.toLowerCase()) {
+                    case 'good':
+                        qualityBadge.classList.add('quality-good');
+                        break;
+                    case 'medium':
+                        qualityBadge.classList.add('quality-medium');
+                        break;
+                    case 'bad':
+                        qualityBadge.classList.add('quality-bad');
+                        break;
+                    default:
+                        qualityBadge.style.background = '#e5e7eb';
+                        qualityBadge.style.color = '#374151';
+                }
+            } else {
+                qualityBadge.classList.add('hidden');
+            }
+            
+            // Update info text
+            if (shape && quality) {
+                predictionInfo.textContent = `Predicted as ${shape} with ${quality} quality`;
+            }
+        }
+        
+        // Allow file input click from the custom UI
+        document.getElementById('fileUpload').addEventListener('change', function() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.disabled = !this.files.length;
+            if (this.files.length) {
+                showNotification(`Selected: ${this.files[0].name}`, 'success');
+            }
+        });
+    </script>
+</body>
+</html>
